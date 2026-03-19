@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PDF Extractor — Phase 1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@700;800&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "background":                  "#111319",
+        "primary":                     "#ffbe5b",
+        "surface-dim":                 "#111319",
+        "on-primary-fixed-variant":    "#624000",
+        "surface-container-low":       "#191c21",
+        "outline":                     "#9e8e7a",
+        "inverse-primary":             "#815500",
+        "on-secondary":                "#003731",
+        "on-tertiary-container":       "#004668",
+        "on-primary-fixed":            "#291800",
+        "secondary":                   "#44e2cd",
+        "error":                       "#ffb4ab",
+        "surface-bright":              "#36393f",
+        "tertiary-container":          "#4ab7fc",
+        "surface-variant":             "#32353b",
+        "surface-container-lowest":    "#0b0e13",
+        "surface-tint":                "#ffb94c",
+        "error-container":             "#93000a",
+        "on-error":                    "#690005",
+        "outline-variant":             "#514534",
+        "on-background":               "#e1e2ea",
+        "on-secondary-container":      "#004d44",
+        "tertiary-fixed":              "#cae6ff",
+        "inverse-on-surface":          "#2e3036",
+        "surface-container":           "#1d2025",
+        "on-surface-variant":          "#d6c4ae",
+        "primary-fixed":               "#ffddb2",
+        "secondary-fixed":             "#62fae3",
+        "on-secondary-fixed":          "#00201c",
+        "surface-container-highest":   "#32353b",
+        "on-primary-container":        "#5b3b00",
+        "surface-container-high":      "#272a30",
+        "on-surface":                  "#e1e2ea",
+        "tertiary":                    "#94d0ff",
+        "on-tertiary-fixed-variant":   "#004b70",
+        "inverse-surface":             "#e1e2ea",
+        "on-primary":                  "#442b00",
+        "on-tertiary-fixed":           "#001e30",
+        "secondary-container":         "#03c6b2",
+        "on-secondary-fixed-variant":  "#005047",
+        "primary-fixed-dim":           "#ffb94c",
+        "secondary-fixed-dim":         "#3cddc7",
+        "on-error-container":          "#ffdad6",
+        "tertiary-fixed-dim":          "#8dcdff",
+        "primary-container":           "#e8a020",
+        "surface":                     "#111319",
+        "on-tertiary":                 "#00344f"
+      },
+      fontFamily: {
+        "headline": ["Manrope"],
+        "body":     ["Inter"],
+        "label":    ["Inter"],
+        "mono":     ["JetBrains Mono"]
+      },
+      borderRadius: {
+        "DEFAULT": "0.125rem",
+        "lg":      "0.25rem",
+        "xl":      "0.5rem",
+        "full":    "0.75rem"
+      },
+    },
+  },
+}
+</script>
+<style>
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  body {
+    background-color: #0b0e13;
+    color: #e1e2ea;
+    font-family: 'Inter', sans-serif;
+  }
+  .ghost-border  { border: 1px solid rgba(158, 142, 122, 0.15); }
+
+  /* Dashed dropzone border — normal and drag-over states */
+  .custom-dashed {
+    background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%232d3f55' stroke-width='2' stroke-dasharray='8%2c 12' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+  }
+  .custom-dashed.dragover {
+    background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%23ffbe5b' stroke-width='2' stroke-dasharray='8%2c 12' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+    background-color: rgba(255, 190, 91, 0.04);
+  }
+
+  /* Smooth progress bars */
+  .bar-fill { transition: width 0.4s ease; }
+
+  /* Log panel scrollbar */
+  .log-panel::-webkit-scrollbar       { width: 4px; }
+  .log-panel::-webkit-scrollbar-track { background: transparent; }
+  .log-panel::-webkit-scrollbar-thumb { background: rgba(158,142,122,0.25); border-radius: 2px; }
+
+  /* Toast slide-up */
+  #toast {
+    transition: transform 0.25s ease, opacity 0.25s ease;
+    transform: translateY(72px);
+    opacity: 0;
+    pointer-events: none;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+
+  /* Pulsing status dot */
+  @keyframes status-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.35; }
+  }
+  .status-pulse { animation: status-pulse 1.4s ease-in-out infinite; }
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<!-- ══════════════════════════════════════════
+     HEADER — persistent across all views
+══════════════════════════════════════════ -->
+<header class="flex justify-between items-center w-full px-8 py-4 sticky top-0 z-50 bg-[#0b0e13] border-b border-white/[0.04]">
+  <div class="flex items-center gap-8">
+    <span class="text-2xl font-black text-primary tracking-tighter font-headline cursor-pointer"
+          onclick="showView('intro')">PDF Extractor</span>
+    <nav class="hidden md:flex gap-6">
+      <span class="nav-link cursor-pointer font-medium transition-colors duration-200 text-sm"
+            data-nav="intro"     onclick="navClick('intro')">Intro</span>
+      <span class="nav-link cursor-pointer font-medium transition-colors duration-200 text-sm"
+            data-nav="upload"    onclick="navClick('upload')">Upload</span>
+      <span class="nav-link cursor-pointer font-medium transition-colors duration-200 text-sm"
+            data-nav="progress"  onclick="navClick('progress')">Processing</span>
+      <span class="nav-link cursor-pointer font-medium transition-colors duration-200 text-sm"
+            data-nav="results"   onclick="navClick('results')">Results</span>
+    </nav>
+  </div>
+  <div class="flex items-center gap-4">
+    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary
+                 border border-primary/20 tracking-wider uppercase">Phase 1</span>
+    <span class="font-mono text-xs text-outline-variant" id="topbar-time"></span>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════
+     MAIN — all views live here
+══════════════════════════════════════════ -->
+<main class="flex-grow flex flex-col items-center py-12 px-6">
+
+  <!-- ─────────────────────────────
+       VIEW: INTRO
+  ───────────────────────────────── -->
+  <div id="view-intro" class="w-full max-w-3xl space-y-10">
+
+    <!-- Hero -->
+    <div class="text-center space-y-4 pt-6">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10
+                  border border-primary/20 text-primary font-mono text-xs tracking-wider uppercase">
+        <span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
+        Prototype · Phase 1
+      </div>
+      <h1 class="text-5xl font-headline font-bold tracking-tight text-on-surface leading-tight">
+        Annual Report<br><span class="text-primary">PDF Extractor</span>
+      </h1>
+      <p class="text-base text-outline max-w-lg mx-auto leading-relaxed">
+        Converts annual report PDFs into structured Excel audit workpapers by extracting
+        Markdown text and tables using AI-powered document parsing.
+      </p>
+    </div>
+
+    <!-- 3-step pipeline cards -->
+    <div class="grid grid-cols-3 gap-4">
+      <div class="p-5 bg-surface-container-low rounded-xl ghost-border space-y-3">
+        <div class="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20
+                    flex items-center justify-center">
+          <span class="material-symbols-outlined text-primary" style="font-size:20px">picture_as_pdf</span>
+        </div>
+        <div>
+          <div class="text-[10px] font-mono text-outline-variant uppercase tracking-wider mb-1">Step 01</div>
+          <div class="font-semibold text-on-surface text-sm mb-1.5">PDF → Markdown</div>
+          <p class="text-xs text-outline leading-relaxed">
+            Split into 50-page chunks and processed by the docling AI engine,
+            extracting text and table structure.
+          </p>
+        </div>
+      </div>
+      <div class="p-5 bg-surface-container-low rounded-xl ghost-border space-y-3">
+        <div class="w-10 h-10 rounded-lg bg-secondary/10 border border-secondary/20
+                    flex items-center justify-center">
+          <span class="material-symbols-outlined text-secondary" style="font-size:20px">table_chart</span>
+        </div>
+        <div>
+          <div class="text-[10px] font-mono text-outline-variant uppercase tracking-wider mb-1">Step 02</div>
+          <div class="font-semibold text-on-surface text-sm mb-1.5">Markdown → Tables</div>
+          <p class="text-xs text-outline leading-relaxed">
+            Cross-page tables stitched together. Financial statement items matched
+            to known abbreviations automatically.
+          </p>
+        </div>
+      </div>
+      <div class="p-5 bg-surface-container-low rounded-xl ghost-border space-y-3">
+        <div class="w-10 h-10 rounded-lg bg-tertiary/10 border border-tertiary/20
+                    flex items-center justify-center">
+          <span class="material-symbols-outlined text-tertiary" style="font-size:20px">grid_on</span>
+        </div>
+        <div>
+          <div class="text-[10px] font-mono text-outline-variant uppercase tracking-wider mb-1">Step 03</div>
+          <div class="font-semibold text-on-surface text-sm mb-1.5">Tables → Excel</div>
+          <p class="text-xs text-outline leading-relaxed">
+            Each table becomes a named Excel sheet. Brackets converted to negatives,
+            index sheet auto-generated.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Capabilities grid -->
+    <div class="grid grid-cols-2 gap-4">
+      <div class="p-5 bg-surface-container-low rounded-xl ghost-border">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+          <span class="text-xs font-mono uppercase tracking-wider text-secondary">What it extracts</span>
+        </div>
+        <div class="space-y-2.5">
+          <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+            <span class="material-symbols-outlined text-secondary flex-shrink-0" style="font-size:15px;font-variation-settings:'FILL' 1">check_circle</span>
+            Financial statement tables (5 core statements)
+          </div>
+          <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+            <span class="material-symbols-outlined text-secondary flex-shrink-0" style="font-size:15px;font-variation-settings:'FILL' 1">check_circle</span>
+            Notes to financial statements
+          </div>
+          <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+            <span class="material-symbols-outlined text-secondary flex-shrink-0" style="font-size:15px;font-variation-settings:'FILL' 1">check_circle</span>
+            Structured Markdown text content
+          </div>
+          <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+            <span class="material-symbols-outlined text-secondary flex-shrink-0" style="font-size:15px;font-variation-settings:'FILL' 1">check_circle</span>
+            Financial numbers (brackets → negatives)
+          </div>
+        </div>
+      </div>
+      <div class="p-5 bg-surface-container-low rounded-xl ghost-border">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+          <span class="text-xs font-mono uppercase tracking-wider text-error">Current limitations</span>
+        </div>
+        <div class="space-y-2.5">
+          <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+            <span class="material-symbols-outlined text-error flex-shrink-0" style="font-size:15px;font-variation-settings:'FILL' 1">cancel</span>
+            Charts, graphs and embedded images
+          </div>
+          <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+            <span class="material-symbols-outlined text-error flex-shrink-0" style="font-size:15px;font-variation-settings:'FILL' 1">cancel</span>
+            Handwritten or stamp annotations
+          </div>
+          <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+            <span class="material-symbols-outlined text-error flex-shrink-0" style="font-size:15px;font-variation-settings:'FILL' 1">cancel</span>
+            Fully scanned PDFs (lower accuracy via OCR)
+          </div>
+          <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+            <span class="material-symbols-outlined text-error flex-shrink-0" style="font-size:15px;font-variation-settings:'FILL' 1">cancel</span>
+            Multi-column free-text narrative sections
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prototype notice
+         FIX: OCR description updated — scanned PDFs are supported, not blocked -->
+    <div class="flex gap-3 p-4 bg-surface-container-low rounded-xl border-l-2 border-primary ghost-border">
+      <span class="material-symbols-outlined text-primary flex-shrink-0 mt-0.5" style="font-size:18px">warning</span>
+      <div>
+        <div class="text-sm font-semibold text-primary mb-1">Prototype Scope — Please Read Before Use</div>
+        <div class="text-xs text-outline leading-relaxed">
+          Extraction quality depends on PDF structure. Digital PDFs are recommended.
+          Scanned PDFs are supported via OCR but may produce lower quality results.
+          All extracted data should be reviewed and verified before use in audit work.
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <button onclick="showView('upload')"
+      class="w-full flex items-center justify-center gap-3 px-8 py-4 rounded-xl
+             bg-gradient-to-br from-primary-container to-primary text-on-primary font-bold text-base
+             shadow-[0_0_24px_rgba(232,160,32,0.2)] hover:shadow-[0_0_36px_rgba(232,160,32,0.4)]
+             transition-all duration-300 active:scale-95">
+      Get Started — Upload PDF
+      <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">play_arrow</span>
+    </button>
+
+  </div><!-- /view-intro -->
+
+  <!-- ─────────────────────────────
+       VIEW: UPLOAD
+  ───────────────────────────────── -->
+  <div id="view-upload" class="hidden w-full max-w-3xl space-y-8 pb-32">
+
+    <!-- Stepper -->
+    <nav class="flex items-center justify-center gap-4 text-xs font-mono uppercase tracking-widest">
+      <div class="flex items-center gap-2 text-primary">
+        <span class="w-5 h-5 rounded-full border border-primary flex items-center justify-center text-[10px]">01</span>
+        <span>Selection</span>
+      </div>
+      <div class="h-px w-8 bg-outline-variant/30"></div>
+      <div class="flex items-center gap-2 text-outline-variant opacity-40">
+        <span class="w-5 h-5 rounded-full border border-outline-variant flex items-center justify-center text-[10px]">02</span>
+        <span>Processing</span>
+      </div>
+      <div class="h-px w-8 bg-outline-variant/30"></div>
+      <div class="flex items-center gap-2 text-outline-variant opacity-40">
+        <span class="w-5 h-5 rounded-full border border-outline-variant flex items-center justify-center text-[10px]">03</span>
+        <span>Results</span>
+      </div>
+    </nav>
+
+    <!-- Heading -->
+    <div class="text-center space-y-2">
+      <h2 class="text-4xl font-headline font-bold tracking-tight text-on-surface">Select Annual Reports</h2>
+      <p class="font-mono text-sm text-outline tracking-wider">
+        FILE_RESTRICTION: <span class="text-secondary">PDF ONLY</span>
+      </p>
+    </div>
+
+    <!-- Mode toggle -->
+    <div class="flex justify-center">
+      <div class="bg-surface-container-high p-1 rounded-full flex gap-1 ghost-border">
+        <button id="mode-single" onclick="setMode('single')"
+          class="px-6 py-2 rounded-full text-sm font-medium transition-colors">Single PDF</button>
+        <button id="mode-batch"  onclick="setMode('batch')"
+          class="px-6 py-2 rounded-full text-sm font-medium transition-colors">Batch Queue</button>
+      </div>
+    </div>
+
+    <!-- Drop zone -->
+    <div class="relative group custom-dashed rounded-xl bg-[#131820] transition-all duration-300"
+         id="dropzone"
+         ondragover="onDragOver(event)"
+         ondragleave="onDragLeave()"
+         ondrop="onDrop(event)">
+      <!-- FIX: file input is a true overlay; the hidden input handles actual file selection -->
+      <input type="file" accept=".pdf" id="file-input"
+             class="absolute inset-0 opacity-0 cursor-pointer z-10"
+             onchange="onFileSelect(event)">
+      <div class="p-14 flex flex-col items-center justify-center gap-5 pointer-events-none">
+        <div class="w-20 h-20 rounded-2xl bg-surface-container-highest flex items-center justify-center
+                    text-primary group-hover:scale-110 transition-transform duration-300">
+          <span class="material-symbols-outlined text-4xl" style="font-variation-settings:'wght' 300">upload_file</span>
+        </div>
+        <div class="text-center space-y-1.5">
+          <p class="text-xl font-medium text-on-surface">
+            Drop PDF files here or
+            <span class="text-primary cursor-pointer pointer-events-auto hover:underline"
+                  onclick="document.getElementById('file-input').click()">browse</span>
+          </p>
+          <!-- FIX: text now reflects the actual 250 MB server limit -->
+          <p class="text-sm text-outline-variant">
+            Maximum file size: 250 MB &nbsp;·&nbsp; OCR enabled for scanned documents
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload progress bar (hidden by default, shown during XHR upload)
+         FIX: replaces "Uploading..." button text with an actual progress bar -->
+    <div id="upload-progress-wrap" class="hidden space-y-1.5">
+      <div class="flex justify-between text-xs font-mono text-outline-variant">
+        <span>Uploading files to server...</span>
+        <span id="upload-pct">0%</span>
+      </div>
+      <div class="h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+        <div id="upload-bar"
+             class="h-full bar-fill rounded-full bg-gradient-to-r from-primary-container to-primary w-0"></div>
+      </div>
+    </div>
+
+    <!-- File queue -->
+    <div class="space-y-3">
+      <div class="flex items-center justify-between px-1">
+        <h3 class="text-xs font-mono uppercase tracking-widest text-outline-variant"
+            id="queue-label">Extraction Queue — 0 file(s)</h3>
+        <button onclick="clearQueue()"
+          class="text-xs font-mono text-error/60 hover:text-error transition-colors">Clear all</button>
+      </div>
+      <div class="space-y-2" id="queue-list">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+  </div><!-- /view-upload -->
+
+  <!-- ─────────────────────────────
+       VIEW: PROGRESS
+  ───────────────────────────────── -->
+  <div id="view-progress" class="hidden w-full max-w-3xl space-y-6">
+
+    <!-- Stepper -->
+    <nav class="flex items-center justify-center gap-4 text-xs font-mono uppercase tracking-widest">
+      <div class="flex items-center gap-2 text-secondary">
+        <span class="material-symbols-outlined text-secondary" style="font-size:14px;font-variation-settings:'FILL' 1">check_circle</span>
+        <span>Selection</span>
+      </div>
+      <div class="h-px w-8 bg-secondary/30"></div>
+      <div class="flex items-center gap-2 text-primary">
+        <span class="w-5 h-5 rounded-full border border-primary flex items-center justify-center text-[10px] status-pulse">02</span>
+        <span>Processing</span>
+      </div>
+      <div class="h-px w-8 bg-outline-variant/30"></div>
+      <div class="flex items-center gap-2 text-outline-variant opacity-40">
+        <span class="w-5 h-5 rounded-full border border-outline-variant flex items-center justify-center text-[10px]">03</span>
+        <span>Results</span>
+      </div>
+    </nav>
+
+    <!-- Heading -->
+    <div class="flex items-baseline gap-3">
+      <h2 class="text-2xl font-headline font-bold text-on-surface">Processing</h2>
+      <span class="font-mono text-sm text-outline-variant" id="prog-mode-label">Single PDF</span>
+    </div>
+
+    <!-- Overall progress bar -->
+    <div class="p-6 bg-surface-container-low rounded-xl ghost-border space-y-3">
+      <div class="flex items-baseline justify-between">
+        <span class="font-medium text-on-surface text-sm" id="overall-label">Initialising...</span>
+        <span class="font-mono text-2xl font-light text-primary" id="overall-pct">0%</span>
+      </div>
+      <div class="h-2 bg-surface-container-high rounded-full overflow-hidden">
+        <div class="h-full bar-fill rounded-full bg-gradient-to-r from-primary-container to-primary w-0"
+             id="overall-bar"></div>
+      </div>
+      <div class="font-mono text-xs text-outline-variant" id="overall-sub">Preparing pipeline...</div>
+    </div>
+
+    <!-- Per-job progress cards (populated by JS) -->
+    <div class="space-y-3" id="progress-cards"></div>
+
+    <!-- Abort -->
+    <div class="flex justify-end pt-1">
+      <button onclick="abortProcessing()"
+        class="flex items-center gap-2 px-5 py-2 rounded-full border border-error/30 text-error
+               text-sm hover:bg-error/10 transition-colors">
+        <span class="material-symbols-outlined" style="font-size:16px">stop_circle</span>
+        Abort
+      </button>
+    </div>
+
+  </div><!-- /view-progress -->
+
+  <!-- ─────────────────────────────
+       VIEW: RESULTS
+  ───────────────────────────────── -->
+  <div id="view-results" class="hidden w-full max-w-3xl space-y-6">
+
+    <!-- Stepper — all done -->
+    <nav class="flex items-center justify-center gap-4 text-xs font-mono uppercase tracking-widest">
+      <div class="flex items-center gap-2 text-secondary">
+        <span class="material-symbols-outlined text-secondary" style="font-size:14px;font-variation-settings:'FILL' 1">check_circle</span>
+        <span>Selection</span>
+      </div>
+      <div class="h-px w-8 bg-secondary/30"></div>
+      <div class="flex items-center gap-2 text-secondary">
+        <span class="material-symbols-outlined text-secondary" style="font-size:14px;font-variation-settings:'FILL' 1">check_circle</span>
+        <span>Processing</span>
+      </div>
+      <div class="h-px w-8 bg-secondary/30"></div>
+      <div class="flex items-center gap-2 text-primary">
+        <span class="w-5 h-5 rounded-full border border-primary flex items-center justify-center text-[10px]">03</span>
+        <span>Results</span>
+      </div>
+    </nav>
+
+    <!-- Heading -->
+    <div class="flex items-baseline gap-3">
+      <h2 class="text-2xl font-headline font-bold text-on-surface">Results</h2>
+      <span class="font-mono text-sm text-outline-variant" id="results-run-label">—</span>
+    </div>
+
+    <!-- Stats strip -->
+    <div class="grid grid-cols-4 gap-3">
+      <div class="p-4 bg-surface-container-low rounded-xl ghost-border text-center">
+        <div class="text-[10px] font-mono uppercase tracking-wider text-outline-variant mb-1">Total PDFs</div>
+        <div class="text-3xl font-mono font-light text-on-surface" id="stat-total">—</div>
+      </div>
+      <div class="p-4 bg-surface-container-low rounded-xl ghost-border text-center">
+        <div class="text-[10px] font-mono uppercase tracking-wider text-outline-variant mb-1">Succeeded</div>
+        <div class="text-3xl font-mono font-light text-secondary" id="stat-ok">—</div>
+      </div>
+      <div class="p-4 bg-surface-container-low rounded-xl ghost-border text-center">
+        <div class="text-[10px] font-mono uppercase tracking-wider text-outline-variant mb-1">Failed</div>
+        <div class="text-3xl font-mono font-light text-error" id="stat-fail">—</div>
+      </div>
+      <div class="p-4 bg-surface-container-low rounded-xl ghost-border text-center">
+        <div class="text-[10px] font-mono uppercase tracking-wider text-outline-variant mb-1">Tables Extracted</div>
+        <div class="text-3xl font-mono font-light text-primary" id="stat-tables">—</div>
+      </div>
+    </div>
+
+    <!-- Result rows (populated by JS) -->
+    <div class="space-y-3" id="result-list"></div>
+
+    <div class="h-px bg-outline-variant/20"></div>
+
+    <!-- New run -->
+    <div class="flex justify-center pb-6">
+      <button onclick="newRun()"
+        class="flex items-center gap-2 px-8 py-3 rounded-full border border-outline-variant/40
+               text-on-surface-variant hover:border-primary hover:text-primary transition-colors font-medium">
+        <span class="material-symbols-outlined" style="font-size:18px">refresh</span>
+        New Run
+      </button>
+    </div>
+
+  </div><!-- /view-results -->
+
+</main>
+
+<!-- ══════════════════════════════════════════
+     FOOTER — upload action bar (upload view only)
+══════════════════════════════════════════ -->
+<footer id="upload-footer"
+  class="hidden mt-auto sticky bottom-0 w-full bg-[#131820] border-t border-[#1e2a38] py-5 px-12 z-50">
+  <div class="max-w-6xl mx-auto flex items-center justify-between">
+    <div class="flex items-center gap-4">
+      <div class="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
+      <div class="flex flex-col">
+        <span class="text-sm font-medium text-on-surface" id="action-main">Ready to process</span>
+        <span class="font-mono text-xs text-outline-variant" id="action-sub">Select one or more PDF files to begin</span>
+      </div>
+    </div>
+    <button id="btn-start" onclick="startProcessing()" disabled
+      class="flex items-center gap-3 px-8 py-3 rounded-full font-bold transition-all duration-300
+             bg-gradient-to-br from-primary-container to-primary text-on-primary
+             shadow-[0_0_20px_rgba(232,160,32,0.2)] hover:shadow-[0_0_32px_rgba(232,160,32,0.4)]
+             active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed
+             disabled:shadow-none disabled:active:scale-100">
+      <span id="btn-start-text">Start Extraction</span>
+      <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">play_arrow</span>
+    </button>
+  </div>
+</footer>
+
+<!-- Toast notification -->
+<div id="toast"
+  class="fixed bottom-6 right-6 z-[200] flex items-center gap-3 px-4 py-3
+         rounded-xl bg-surface-container-high ghost-border text-sm text-on-surface max-w-xs">
+  <span class="w-2 h-2 rounded-full flex-shrink-0" id="toast-dot"></span>
+  <span id="toast-msg"></span>
+</div>
+
+
+<script>
+/* ════════════════════════════════════════════
+   CONSTANTS
+════════════════════════════════════════════ */
+
+// FIX: relative URL instead of hardcoded localhost:8000
+// Works regardless of host, port, or network setup
+const API = '';
+
+const MAX_UPLOAD_MB  = 250;   // mirrors the server-side limit
+const MAX_SSE_RETRY  = 3;     // reconnect attempts before falling back to polling
+const MAX_POLL_FAIL  = 5;     // polling failures before showing fatal error
+
+/* ════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════ */
+let state = {
+  mode:        'single',
+  queue:       [],    // [{ id, name, size, file, fileId }]
+  nextId:      1,
+  currentView: 'intro',
+  jobs:        [],
+  runId:       null,
+  sse:         null,
+  sseRetries:  0,
+};
+
+let pollFailCount = 0;
+
+/* ════════════════════════════════════════════
+   UTILITIES
+════════════════════════════════════════════ */
+function formatSize(b) {
+  if (b < 1024)    return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+
+function fmtTime(sec) {
+  if (!sec) return '—';
+  if (sec < 60) return sec + 's';
+  return `${Math.floor(sec / 60)}m ${sec % 60}s`;
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+let _toastTimer = null;
+function showToast(msg, type = 'success') {
+  const el  = document.getElementById('toast');
+  const dot = document.getElementById('toast-dot');
+  document.getElementById('toast-msg').textContent = msg;
+  const colors = { success: 'bg-secondary', warning: 'bg-primary', error: 'bg-error', info: 'bg-tertiary' };
+  dot.className = `w-2 h-2 rounded-full flex-shrink-0 ${colors[type] ?? 'bg-secondary'}`;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3800);
+}
+
+/* ════════════════════════════════════════════
+   VIEW MANAGEMENT
+   FIX: showView is the single source of truth — no view can accidentally be
+        "active" at the same time as another. All views start hidden in HTML;
+        only 'intro' is shown on boot via the last line of this script.
+════════════════════════════════════════════ */
+const ALL_VIEWS = ['intro', 'upload', 'progress', 'results'];
+
+function showView(name) {
+  // Toggle views
+  ALL_VIEWS.forEach(v => {
+    document.getElementById('view-' + v).classList.toggle('hidden', v !== name);
+  });
+
+  // Upload footer only visible in upload view
+  document.getElementById('upload-footer').classList.toggle('hidden', name !== 'upload');
+
+  // Update header nav styles
+  document.querySelectorAll('.nav-link').forEach(el => {
+    const isActive = el.dataset.nav === name;
+    el.classList.toggle('text-primary',    isActive);
+    el.classList.toggle('font-bold',       isActive);
+    el.classList.toggle('text-gray-400',   !isActive);
+    el.classList.toggle('font-medium',     !isActive);
+  });
+
+  state.currentView = name;
+}
+
+function navClick(name) {
+  // Prevent navigating to progress/results unless there is an active run
+  if (name === 'progress' && !state.runId) return;
+  if (name === 'results'  && !state.jobs.some(j => j.status === 'done' || j.status === 'failed')) return;
+  showView(name);
+}
+
+/* ════════════════════════════════════════════
+   MODE TOGGLE
+════════════════════════════════════════════ */
+const MODE_ACTIVE = 'bg-surface-variant text-on-surface shadow-sm';
+const MODE_IDLE   = 'text-on-surface-variant hover:text-on-surface';
+
+function setMode(m) {
+  state.mode = m;
+
+  document.getElementById('mode-single').className =
+    `px-6 py-2 rounded-full text-sm font-medium transition-colors ${m === 'single' ? MODE_ACTIVE : MODE_IDLE}`;
+  document.getElementById('mode-batch').className =
+    `px-6 py-2 rounded-full text-sm font-medium transition-colors ${m === 'batch'  ? MODE_ACTIVE : MODE_IDLE}`;
+
+  // FIX (newRun): syncing the input attribute here ensures it's always correct
+  document.getElementById('file-input').multiple = (m === 'batch');
+  updateActionBar();
+}
+
+/* ════════════════════════════════════════════
+   FILE QUEUE
+════════════════════════════════════════════ */
+function addFiles(fileList) {
+  const pdfs = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.pdf'));
+  if (!pdfs.length) { showToast('Please select PDF files only.', 'warning'); return; }
+
+  if (state.mode === 'single') {
+    state.queue = [];
+    addToQueue(pdfs[0]);
+  } else {
+    pdfs.forEach(f => addToQueue(f));
+  }
+  renderQueue();
+}
+
+function addToQueue(file) {
+  // FIX: dedup key is name + size — two files with the same name but different
+  // sizes (different companies' reports) are treated as distinct entries.
+  // Previously only name was checked, so the second file was silently dropped.
+  const key = `${file.name}::${file.size}`;
+  if (state.queue.some(q => `${q.name}::${q.size}` === key)) return;
+  state.queue.push({ id: state.nextId++, name: file.name, size: file.size, file, fileId: null });
+}
+
+function removeFromQueue(id) {
+  state.queue = state.queue.filter(q => q.id !== id);
+  renderQueue();
+}
+
+function clearQueue() {
+  state.queue = [];
+  renderQueue();
+}
+
+function renderQueue() {
+  const list = document.getElementById('queue-list');
+  document.getElementById('queue-label').textContent =
+    `Extraction Queue — ${state.queue.length} file(s)`;
+
+  if (!state.queue.length) {
+    list.innerHTML = `
+      <div class="h-20 border border-dashed border-outline-variant/20 rounded-xl
+                  flex items-center justify-center">
+        <span class="text-xs font-mono text-outline-variant/40 italic">
+          AWAITING_INPUTS — Drop PDFs above or click browse
+        </span>
+      </div>`;
+    updateActionBar();
+    return;
+  }
+
+  list.innerHTML = state.queue.map(q => `
+    <div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl
+                ghost-border hover:bg-surface-container-high transition-colors group"
+         id="qi-${q.id}">
+      <div class="flex items-center gap-4">
+        <div class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center
+                    justify-center text-secondary flex-shrink-0">
+          <span class="material-symbols-outlined" style="font-size:20px">description</span>
+        </div>
+        <div>
+          <div class="font-medium text-on-surface text-sm truncate max-w-xs"
+               title="${escHtml(q.name)}">${escHtml(q.name)}</div>
+          <div class="font-mono text-[11px] text-outline-variant mt-0.5">${formatSize(q.size)}</div>
+        </div>
+      </div>
+      <button onclick="removeFromQueue(${q.id})"
+        class="w-8 h-8 rounded-full flex items-center justify-center text-outline-variant
+               hover:bg-error/10 hover:text-error transition-all flex-shrink-0">
+        <span class="material-symbols-outlined" style="font-size:16px">close</span>
+      </button>
+    </div>`).join('');
+
+  updateActionBar();
+}
+
+function updateActionBar() {
+  const n   = state.queue.length;
+  const btn = document.getElementById('btn-start');
+  btn.disabled = (n === 0);
+  const main = document.getElementById('action-main');
+  const sub  = document.getElementById('action-sub');
+  if (!n) {
+    main.textContent = 'Ready to process';
+    sub.textContent  = 'Select one or more PDF files to begin';
+  } else if (state.mode === 'single') {
+    main.textContent = state.queue[0].name;
+    sub.textContent  = `Single PDF · ${formatSize(state.queue[0].size)}`;
+  } else {
+    const tot = state.queue.reduce((a, q) => a + q.size, 0);
+    main.textContent = `${n} PDF${n > 1 ? 's' : ''} queued`;
+    sub.textContent  = `Batch mode · Total ${formatSize(tot)}`;
+  }
+}
+
+/* Drag & drop */
+function onDragOver(e)  { e.preventDefault(); document.getElementById('dropzone').classList.add('dragover'); }
+function onDragLeave()  { document.getElementById('dropzone').classList.remove('dragover'); }
+function onDrop(e)      { e.preventDefault(); onDragLeave(); addFiles(e.dataTransfer.files); }
+function onFileSelect(e){ addFiles(e.target.files); e.target.value = ''; }
+
+/* ════════════════════════════════════════════
+   UPLOAD WITH XHR PROGRESS
+   FIX: replaces a silent fetch() with XHR so the user sees an actual upload
+   progress bar instead of a frozen "Uploading..." button.
+════════════════════════════════════════════ */
+function uploadWithProgress(formData) {
+  return new Promise((resolve, reject) => {
+    const xhr  = new XMLHttpRequest();
+    const wrap = document.getElementById('upload-progress-wrap');
+    const bar  = document.getElementById('upload-bar');
+    const pct  = document.getElementById('upload-pct');
+
+    wrap.classList.remove('hidden');
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const p = Math.round((e.loaded / e.total) * 100);
+        bar.style.width = p + '%';
+        pct.textContent = p + '%';
+      }
+    };
+
+    xhr.onload = () => {
+      wrap.classList.add('hidden');
+      bar.style.width = '0%';
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try   { resolve(JSON.parse(xhr.responseText)); }
+        catch (e) { reject(new Error('Invalid server response during upload')); }
+      } else {
+        let msg = `Upload failed (HTTP ${xhr.status})`;
+        try { const err = JSON.parse(xhr.responseText); if (err.detail) msg = err.detail; } catch (_) {}
+        reject(new Error(msg));
+      }
+    };
+
+    xhr.onerror = () => {
+      wrap.classList.add('hidden');
+      reject(new Error('Network error — is the server running on localhost:8000?'));
+    };
+
+    xhr.open('POST', `${API}/api/upload`);
+    xhr.send(formData);
+  });
+}
+
+/* ════════════════════════════════════════════
+   PROCESSING — START
+════════════════════════════════════════════ */
+async function startProcessing() {
+  if (!state.queue.length) return;
+
+  const btn     = document.getElementById('btn-start');
+  const btnText = document.getElementById('btn-start-text');
+  btn.disabled        = true;
+  btnText.textContent = 'Uploading...';
+
+  try {
+    /* 1 — Upload via XHR (shows progress bar) */
+    const fd = new FormData();
+    state.queue.forEach(q => fd.append('files', q.file, q.name));
+    const upData = await uploadWithProgress(fd);
+
+    // Store file_id back into queue entries (matched by name)
+    upData.forEach(u => {
+      const q = state.queue.find(q => q.name === u.name);
+      if (q) q.fileId = u.file_id;
+    });
+
+    btnText.textContent = 'Starting...';
+
+    /* 2 — Start run
+       FIX (path traversal): only file_id is sent to /api/start — never the
+       server-side path. The server must resolve paths from its own file_id →
+       path map (UPLOADED_FILES dict). See app.py fix for the corresponding
+       backend change that makes this work.
+    */
+    const startRes = await fetch(`${API}/api/start`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mode:  state.mode,
+        files: upData.map(u => ({
+          file_id: u.file_id,
+          name:    u.name,
+          size:    u.size,
+          // path is intentionally omitted — backend looks it up by file_id
+        })),
+      }),
+    });
+    if (!startRes.ok) throw new Error(`Start failed: ${startRes.status}`);
+    const { run_id } = await startRes.json();
+    state.runId = run_id;
+
+    /* 3 — Build local job list */
+    state.jobs = state.queue.map((q, i) => ({
+      idx:     i,
+      id:      q.id,
+      name:    q.name,
+      size:    q.size,
+      status:  'waiting',
+      steps:   {
+        S01: { status: 'waiting', pct: 0 },
+        S02: { status: 'waiting', pct: 0 },
+        S03: { status: 'waiting', pct: 0 },
+      },
+      elapsed: 0,
+      tables:  0,
+      error:   '',
+    }));
+
+    document.getElementById('prog-mode-label').textContent =
+      state.mode === 'batch' ? `Batch · ${state.jobs.length} PDFs` : 'Single PDF';
+
+    renderProgressCards();
+    showView('progress');
+
+    /* 4 — Connect SSE */
+    connectSSE(run_id);
+
+  } catch (err) {
+    showToast(err.message, 'error');
+    btn.disabled        = false;
+    btnText.textContent = 'Start Extraction';
+  }
+}
+
+/* ════════════════════════════════════════════
+   SSE — WITH RETRY LOGIC
+   FIX: instead of closing on the very first error and silently falling back,
+   we allow EventSource to auto-reconnect up to MAX_SSE_RETRY times. Only
+   after repeated failures do we fall back to polling — and we tell the user.
+════════════════════════════════════════════ */
+function connectSSE(run_id) {
+  if (state.sse) state.sse.close();
+  state.sseRetries = 0;
+
+  const es = new EventSource(`${API}/api/stream/${run_id}`);
+  state.sse = es;
+
+  es.onmessage = (e) => {
+    state.sseRetries = 0;   // successful message — reset error counter
+    try { handleEvent(JSON.parse(e.data)); } catch (_) {}
+  };
+
+  es.onerror = () => {
+    state.sseRetries++;
+    if (state.sseRetries > MAX_SSE_RETRY) {
+      // Enough retries — close and fall back to polling
+      es.close();
+      state.sse = null;
+      showToast('Live stream unavailable — switching to polling mode', 'warning');
+      pollFailCount = 0;
+      setTimeout(() => pollFallback(run_id), 2000);
+    }
+    // else: let EventSource handle its own reconnect delay (do NOT close)
+  };
+}
+
+/* ════════════════════════════════════════════
+   POLL FALLBACK — WITH ERROR HANDLING
+   FIX: catch block no longer silently swallows errors. After MAX_POLL_FAIL
+   consecutive failures, the user is informed and polling stops.
+════════════════════════════════════════════ */
+async function pollFallback(run_id) {
+  try {
+    const res = await fetch(`${API}/api/status/${run_id}`);
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    const data = await res.json();
+    pollFailCount = 0;
+
+    // Sync local state from snapshot
+    data.jobs.forEach((bj, i) => {
+      const lj = state.jobs[i];
+      if (!lj) return;
+      lj.status  = bj.status;
+      lj.tables  = bj.tables  ?? lj.tables;
+      lj.elapsed = bj.elapsed ?? lj.elapsed;
+      lj.error   = bj.error   ?? lj.error;
+      Object.entries(bj.steps || {}).forEach(([k, v]) => { lj.steps[k] = v; });
+      updateJobCard(lj);
+      STEPS.forEach(s => {
+        if (lj.steps[s.key]) updateStepBadge(lj.id, s.key, lj.steps[s.key].status, lj.steps[s.key].pct);
+      });
+    });
+    updateOverall();
+
+    if (data.status === 'done' || data.status === 'aborted') {
+      setTimeout(showResults, 800);
+    } else {
+      setTimeout(() => pollFallback(run_id), 3000);
+    }
+
+  } catch (err) {
+    pollFailCount++;
+    if (pollFailCount >= MAX_POLL_FAIL) {
+      showToast('Connection lost — please refresh the page to check run status', 'error');
+      return;   // stop polling
+    }
+    showToast(`Connection issue (attempt ${pollFailCount}/${MAX_POLL_FAIL}) — retrying...`, 'warning');
+    setTimeout(() => pollFallback(run_id), 5000);   // back off on failure
+  }
+}
+
+/* ════════════════════════════════════════════
+   SSE EVENT HANDLER
+════════════════════════════════════════════ */
+function handleEvent(ev) {
+  switch (ev.type) {
+
+    case 'job_status': {
+      const job = state.jobs[ev.job_idx];
+      if (!job) break;
+      job.status  = ev.status;
+      job.tables  = ev.tables  ?? job.tables;
+      job.elapsed = ev.elapsed ?? job.elapsed;
+      job.error   = ev.error   ?? job.error;
+      updateJobCard(job);
+      updateOverall();
+      break;
+    }
+
+    case 'step': {
+      const job = state.jobs[ev.job_idx];
+      if (!job) break;
+      job.steps[ev.step] = { status: ev.status, pct: ev.pct };
+      updateStepBadge(job.id, ev.step, ev.status, ev.pct);
+      break;
+    }
+
+    case 'log': {
+      const job = state.jobs[ev.job_idx];
+      if (!job) break;
+      addLog(job.id, ev.msg, ev.level || 'info');
+      break;
+    }
+
+    case 'run_done':
+    case 'stream_end': {
+      if (state.sse) { state.sse.close(); state.sse = null; }
+      setTimeout(showResults, 800);
+      break;
+    }
+  }
+}
+
+/* ════════════════════════════════════════════
+   PROGRESS CARDS
+════════════════════════════════════════════ */
+const STEPS = [
+  { key: 'S01', label: 'PDF → MD'       },
+  { key: 'S02', label: 'MD → Tables'    },
+  { key: 'S03', label: 'Tables → XL'    },
+];
+
+function stepBadgeClasses(status) {
+  return {
+    waiting: 'bg-surface-container-high text-outline-variant border-outline-variant/30',
+    active:  'bg-primary/10 text-primary border-primary/30',
+    done:    'bg-secondary/10 text-secondary border-secondary/30',
+    failed:  'bg-error/10 text-error border-error/30',
+  }[status] || 'bg-surface-container-high text-outline-variant border-outline-variant/30';
+}
+
+function dotClasses(status) {
+  return {
+    waiting: 'bg-outline-variant',
+    running: 'bg-primary status-pulse',
+    done:    'bg-secondary',
+    failed:  'bg-error',
+    aborted: 'bg-outline-variant opacity-50',
+  }[status] || 'bg-outline-variant';
+}
+
+function renderProgressCards() {
+  document.getElementById('progress-cards').innerHTML = state.jobs.map(job => `
+    <div class="bg-surface-container-low rounded-xl ghost-border overflow-hidden" id="pc-${job.id}">
+      <div class="flex items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-white/[0.02] transition-colors"
+           onclick="toggleCard(${job.id})">
+        <div class="w-2 h-2 rounded-full flex-shrink-0 ${dotClasses(job.status)}" id="sd-${job.id}"></div>
+        <div class="font-medium text-on-surface text-sm truncate flex-1"
+             title="${escHtml(job.name)}">${escHtml(job.name)}</div>
+        <div class="flex gap-1.5">
+          ${STEPS.map(s => `
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full border ${stepBadgeClasses(job.steps[s.key].status)}"
+                  id="sb-${job.id}-${s.key}">${s.key}</span>`).join('')}
+        </div>
+        <div class="font-mono text-xs text-outline-variant flex-shrink-0 w-14 text-right"
+             id="pt-${job.id}">—</div>
+        <span class="material-symbols-outlined text-outline-variant flex-shrink-0 transition-transform duration-200"
+              style="font-size:16px" id="chv-${job.id}">expand_more</span>
+      </div>
+      <!-- Expandable body -->
+      <div class="hidden px-4 pb-4 space-y-3" id="pcb-${job.id}">
+        <div class="grid grid-cols-3 gap-2">
+          ${STEPS.map(s => `
+            <div class="p-3 bg-surface-container rounded-lg">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-[10px] font-mono text-outline-variant uppercase">${s.key}</span>
+                <span class="text-[10px] font-mono text-outline-variant">${s.label}</span>
+              </div>
+              <div class="h-1 bg-surface-container-high rounded-full overflow-hidden">
+                <div class="h-full bar-fill rounded-full bg-gradient-to-r from-primary-container to-primary"
+                     id="pbar-${job.id}-${s.key}" style="width:${job.steps[s.key].pct}%"></div>
+              </div>
+            </div>`).join('')}
+        </div>
+        <div class="log-panel bg-[#0b0e13] rounded-lg p-3 h-28 overflow-y-auto font-mono text-xs leading-relaxed"
+             id="log-${job.id}">
+          <span class="text-outline-variant italic">Waiting in queue...</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleCard(id) {
+  const body = document.getElementById('pcb-' + id);
+  const chv  = document.getElementById('chv-' + id);
+  const isOpen = !body.classList.toggle('hidden');
+  chv.style.transform = isOpen ? 'rotate(180deg)' : '';
+}
+
+function updateJobCard(job) {
+  const dot = document.getElementById('sd-' + job.id);
+  if (dot) dot.className = `w-2 h-2 rounded-full flex-shrink-0 ${dotClasses(job.status)}`;
+
+  const pt = document.getElementById('pt-' + job.id);
+  if (pt && job.elapsed) pt.textContent = fmtTime(job.elapsed);
+
+  // Auto-expand card when this job starts running
+  if (job.status === 'running') {
+    const body = document.getElementById('pcb-' + job.id);
+    const chv  = document.getElementById('chv-' + job.id);
+    if (body && body.classList.contains('hidden')) {
+      body.classList.remove('hidden');
+      if (chv) chv.style.transform = 'rotate(180deg)';
+    }
+  }
+}
+
+function updateStepBadge(jobId, step, status, pct) {
+  const badge = document.getElementById(`sb-${jobId}-${step}`);
+  if (badge) badge.className = `text-[10px] font-mono px-2 py-0.5 rounded-full border ${stepBadgeClasses(status)}`;
+  const bar = document.getElementById(`pbar-${jobId}-${step}`);
+  if (bar) bar.style.width = pct + '%';
+}
+
+function addLog(jobId, msg, type) {
+  const panel = document.getElementById('log-' + jobId);
+  if (!panel) return;
+  if (panel.querySelector('.italic')) panel.innerHTML = '';   // clear placeholder
+  const line = document.createElement('div');
+  const c = { info: 'text-on-surface-variant', ok: 'text-secondary', warn: 'text-primary', error: 'text-error' };
+  line.className   = c[type] || 'text-on-surface-variant';
+  line.textContent = `[${new Date().toTimeString().slice(0,8)}] ${msg}`;
+  panel.appendChild(line);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+/* ════════════════════════════════════════════
+   OVERALL PROGRESS BAR
+   FIX: 'aborted' status is now counted towards completion so the bar
+   reaches 100% when all jobs finish (even if some were aborted).
+════════════════════════════════════════════ */
+function updateOverall() {
+  const total = state.jobs.length;
+  const done  = state.jobs.filter(j =>
+    j.status === 'done' || j.status === 'failed' || j.status === 'aborted'
+  ).length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+
+  document.getElementById('overall-bar').style.width = pct + '%';
+  document.getElementById('overall-pct').textContent = pct + '%';
+
+  const running = state.jobs.find(j => j.status === 'running');
+  if (running) {
+    document.getElementById('overall-label').textContent = `Processing: ${running.name}`;
+    document.getElementById('overall-sub').textContent   = `${done} of ${total} PDF(s) complete`;
+  } else if (done === total && total > 0) {
+    // All done — switch bar and percentage to teal
+    document.getElementById('overall-bar').style.background = 'linear-gradient(to right, #03c6b2, #44e2cd)';
+    document.getElementById('overall-pct').classList.replace('text-primary', 'text-secondary');
+    document.getElementById('overall-label').textContent = 'All done!';
+    document.getElementById('overall-sub').textContent   = `${total} PDF(s) processed`;
+  }
+}
+
+/* ════════════════════════════════════════════
+   ABORT
+════════════════════════════════════════════ */
+async function abortProcessing() {
+  if (!confirm('Abort all processing? In-progress batches will not be saved.')) return;
+  if (state.runId) {
+    await fetch(`${API}/api/abort/${state.runId}`, { method: 'POST' }).catch(() => {});
+  }
+  if (state.sse) { state.sse.close(); state.sse = null; }
+  showView('upload');
+  showToast('Processing aborted.', 'warning');
+  // Uploaded files on server are cleaned up by the server-side TTL task (see app.py fix)
+}
+
+/* ════════════════════════════════════════════
+   RESULTS
+════════════════════════════════════════════ */
+function showResults() {
+  const ok     = state.jobs.filter(j => j.status === 'done').length;
+  const fail   = state.jobs.filter(j => j.status === 'failed').length;
+  const tables = state.jobs.reduce((a, j) => a + (j.tables || 0), 0);
+
+  document.getElementById('stat-total').textContent  = state.jobs.length;
+  document.getElementById('stat-ok').textContent     = ok;
+  document.getElementById('stat-fail').textContent   = fail;
+  document.getElementById('stat-tables').textContent = tables;
+  document.getElementById('results-run-label').textContent =
+    state.mode === 'batch' ? `Batch Run · ${state.jobs.length} PDFs` : 'Single PDF';
+
+  document.getElementById('result-list').innerHTML = state.jobs.map((job, i) => {
+    const success = job.status === 'done';
+    return `
+      <div class="flex items-center gap-4 p-4 bg-surface-container-low rounded-xl ghost-border
+                  hover:bg-surface-container-high transition-colors">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
+                    ${success ? 'bg-secondary/10 border border-secondary/20' : 'bg-error/10 border border-error/20'}">
+          <span class="material-symbols-outlined ${success ? 'text-secondary' : 'text-error'}"
+                style="font-size:20px;font-variation-settings:'FILL' 1">
+            ${success ? 'check_circle' : 'cancel'}
+          </span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-medium text-on-surface text-sm truncate"
+               title="${escHtml(job.name)}">${escHtml(job.name)}</div>
+          ${success
+            ? `<div class="font-mono text-xs text-outline-variant mt-0.5">
+                 ${job.tables} tables &nbsp;·&nbsp; ${fmtTime(job.elapsed)} &nbsp;·&nbsp; ${formatSize(job.size)}
+               </div>`
+            : `<div class="font-mono text-xs text-error mt-0.5 truncate"
+                    title="${escHtml(job.error || '')}">${escHtml(job.error || 'Processing failed')}</div>`}
+        </div>
+        <div class="flex gap-2 flex-shrink-0">
+          ${success ? `
+            <a href="${API}/api/download/${state.runId}/${i}" target="_blank"
+               class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10
+                      border border-primary/20 text-primary text-xs font-medium
+                      hover:bg-primary/20 transition-colors no-underline">
+              <span class="material-symbols-outlined" style="font-size:14px">download</span>
+              Excel
+            </a>
+            <a href="${API}/api/report/${state.runId}/${i}" target="_blank"
+               class="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-outline-variant/40
+                      text-on-surface-variant text-xs font-medium
+                      hover:border-tertiary hover:text-tertiary transition-colors no-underline">
+              <span class="material-symbols-outlined" style="font-size:14px">article</span>
+              Report
+            </a>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  showView('results');
+  showToast(
+    `Done — ${ok} of ${state.jobs.length} succeeded`,
+    ok === state.jobs.length ? 'success' : 'warning'
+  );
+}
+
+/* ════════════════════════════════════════════
+   NEW RUN
+   FIX: calls setMode() explicitly to re-sync the file input's `multiple`
+   attribute and button active states, which were not reset previously.
+════════════════════════════════════════════ */
+function newRun() {
+  if (state.sse) { state.sse.close(); state.sse = null; }
+  state.queue      = [];
+  state.jobs       = [];
+  state.runId      = null;
+  state.sseRetries = 0;
+  pollFailCount    = 0;
+
+  const btn     = document.getElementById('btn-start');
+  const btnText = document.getElementById('btn-start-text');
+  btn.disabled        = false;
+  btnText.textContent = 'Start Extraction';
+
+  renderQueue();
+  setMode(state.mode);   // re-applies mode button states and syncs file input
+  showView('upload');
+}
+
+/* ════════════════════════════════════════════
+   CLOCK
+════════════════════════════════════════════ */
+function updateClock() {
+  const el = document.getElementById('topbar-time');
+  if (el) el.textContent = new Date().toTimeString().slice(0, 8);
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* ════════════════════════════════════════════
+   BOOT
+   FIX: only 'intro' is active on load — all other views start hidden in HTML.
+   No duplicate .active class, no double-render on first paint.
+════════════════════════════════════════════ */
+setMode('single');
+renderQueue();
+showView('intro');
+
+</script>
+</body>
+</html>

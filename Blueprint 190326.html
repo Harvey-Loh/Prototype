@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PDF Extractor — Intelligence Platform Blueprint</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&family=Lora:ital,wght@0,400;1,400&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:       #ffffff;
+    --bg2:      #f7f7f5;
+    --outline:  #e5e3db;
+    --text:     #1a1a18;
+    --muted:    #6b6860;
+    --faint:    #9a9890;
+
+    --amber:    #c47f00;
+    --amber-lt: #fff8e6;
+    --amber-bd: #f0c85a;
+
+    --teal:     #0f7a6e;
+    --teal-lt:  #e6f7f5;
+    --teal-bd:  #7dd5cb;
+
+    --coral:    #c04a28;
+    --coral-lt: #fdf0eb;
+    --coral-bd: #f0a98a;
+
+    --purple:   #5c3fb5;
+    --purple-lt:#f0ecfd;
+    --purple-bd:#bbaaf0;
+
+    --green:    #237a60;
+    --green-lt: #e8f7f2;
+    --green-bd: #84d4bc;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: 'Manrope', sans-serif; line-height: 1.6; overflow-x: hidden; }
+
+  .reveal { opacity: 0; transform: translateY(22px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .reveal.visible { opacity: 1; transform: none; }
+
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 40px;
+    background: rgba(255,255,255,0.94);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--outline);
+  }
+  .nav-logo { font-weight: 800; font-size: 17px; color: var(--amber); letter-spacing: -0.3px; }
+  .nav-links { display: flex; gap: 28px; }
+  .nav-links a { font-size: 13px; color: var(--muted); text-decoration: none; font-weight: 600; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-badge {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 3px 9px; border-radius: 4px;
+    background: var(--amber-lt); border: 1px solid var(--amber-bd);
+    color: var(--amber); letter-spacing: 0.08em; text-transform: uppercase;
+  }
+
+  .section { padding: 88px 40px; max-width: 980px; margin: 0 auto; }
+  .divider { height: 1px; background: var(--outline); margin: 0 40px; }
+
+  .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); margin-bottom: 10px; }
+  .section-title { font-size: clamp(26px, 3.5vw, 40px); font-weight: 800; letter-spacing: -1px; line-height: 1.1; margin-bottom: 14px; }
+  .section-desc { font-size: 15px; color: var(--muted); max-width: 520px; line-height: 1.75; font-family: 'Lora', serif; font-style: italic; margin-bottom: 48px; }
+
+  /* hero */
+  .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 120px 40px 80px; max-width: 980px; margin: 0 auto; }
+  .hero-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 14px; border-radius: 999px;
+    background: var(--amber-lt); border: 1px solid var(--amber-bd);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--amber); letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 28px; width: fit-content;
+  }
+  .hero-tag::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); animation: blink 1.6s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
+  .hero h1 { font-size: clamp(44px, 7.5vw, 82px); font-weight: 800; line-height: 1.02; letter-spacing: -2.5px; margin-bottom: 22px; }
+  .hero h1 em { font-style: normal; color: var(--amber); }
+  .hero-sub { font-size: 17px; color: var(--muted); max-width: 540px; line-height: 1.75; font-family: 'Lora', serif; font-style: italic; margin-bottom: 52px; }
+  .stats { display: flex; gap: 48px; flex-wrap: wrap; }
+  .stat-num { font-family: 'JetBrains Mono', monospace; font-size: 36px; font-weight: 500; color: var(--amber); line-height: 1; display: block; margin-bottom: 4px; }
+  .stat-lbl { font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+
+  /* pipeline */
+  .pipeline { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--outline); border-radius: 12px; overflow: hidden; background: var(--bg2); margin-bottom: 44px; }
+  .pipe-step { padding: 20px 18px; border-right: 1px solid var(--outline); }
+  .pipe-step:last-child { border-right: none; background: var(--amber-lt); }
+  .pipe-num { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--faint); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 5px; }
+  .pipe-step:last-child .pipe-num { color: var(--amber); }
+  .pipe-label { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .pipe-step:last-child .pipe-label { color: var(--amber); }
+  .pipe-sub { font-size: 11px; color: var(--muted); }
+
+  /* small cards */
+  .g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  .card { background: var(--bg2); border: 1px solid var(--outline); border-radius: 12px; padding: 22px; transition: border-color 0.2s, box-shadow 0.2s; }
+  .card:hover { border-color: var(--amber-bd); box-shadow: 0 4px 18px rgba(0,0,0,0.06); }
+  .card-ico { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 14px; }
+  .card-eye { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .card h3 { font-size: 14px; font-weight: 700; margin-bottom: 7px; line-height: 1.3; }
+  .card p  { font-size: 12px; color: var(--muted); line-height: 1.65; }
+  .chip { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 2px 7px; border-radius: 4px; margin-top: 10px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 500; }
+
+  .ca .card-ico { background:var(--amber-lt); color:var(--amber); border:1px solid var(--amber-bd); }
+  .ca .card-eye { color:var(--amber); }
+  .ca .chip { background:var(--amber-lt); color:var(--amber); border:1px solid var(--amber-bd); }
+  .ct .card-ico { background:var(--teal-lt);  color:var(--teal);  border:1px solid var(--teal-bd); }
+  .ct .card-eye { color:var(--teal); }
+  .ct .chip { background:var(--teal-lt); color:var(--teal); border:1px solid var(--teal-bd); }
+  .cc .card-ico { background:var(--coral-lt); color:var(--coral); border:1px solid var(--coral-bd); }
+  .cc .card-eye { color:var(--coral); }
+  .cc .chip { background:var(--coral-lt); color:var(--coral); border:1px solid var(--coral-bd); }
+  .cp .card-ico { background:var(--purple-lt);color:var(--purple);border:1px solid var(--purple-bd); }
+  .cp .card-eye { color:var(--purple); }
+  .cp .chip { background:var(--purple-lt); color:var(--purple); border:1px solid var(--purple-bd); }
+  .cg .card-ico { background:var(--green-lt); color:var(--green); border:1px solid var(--green-bd); }
+  .cg .card-eye { color:var(--green); }
+  .cg .chip { background:var(--green-lt); color:var(--green); border:1px solid var(--green-bd); }
+
+  /* ── Branch rows ── */
+  .branch {
+    border: 1px solid var(--outline);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    transition: box-shadow 0.2s;
+  }
+  .branch:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.06); }
+
+  /* clickable header row */
+  .branch-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 20px 22px;
+    cursor: pointer;
+    background: var(--bg2);
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .branch-header:hover { background: var(--bg2); }
+
+  .branch-accent { width: 4px; border-radius: 2px; flex-shrink: 0; align-self: stretch; min-height: 28px; }
+
+  .branch-header-text { flex: 1; }
+  .branch-eye { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 3px; }
+  .branch-title { font-size: 15px; font-weight: 700; line-height: 1.3; }
+  .branch-desc-short { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  .branch-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .branch-sub-pills { display: flex; gap: 6px; }
+  .sub-pill {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    padding: 3px 8px; border-radius: 4px;
+    border: 1px solid var(--outline); color: var(--faint);
+    letter-spacing: 0.04em;
+  }
+
+  .branch-chevron {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--outline);
+    background: var(--bg);
+    flex-shrink: 0;
+    transition: transform 0.25s ease, background 0.15s;
+  }
+  .branch-chevron svg { width: 12px; height: 12px; stroke: var(--muted); transition: stroke 0.15s; }
+  .branch.open .branch-chevron { transform: rotate(180deg); }
+
+  /* expandable detail panel */
+  .branch-detail {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease;
+    opacity: 0;
+    background: var(--bg);
+    border-top: 0px solid var(--outline);
+  }
+  .branch.open .branch-detail {
+    max-height: 600px;
+    opacity: 1;
+    border-top-width: 1px;
+  }
+  .branch-detail-inner {
+    padding: 24px 22px 24px 40px;
+    display: grid;
+    gap: 12px;
+  }
+  .branch-detail-inner.cols2 { grid-template-columns: repeat(2,1fr); }
+  .branch-detail-inner.cols3 { grid-template-columns: repeat(3,1fr); }
+
+  .detail-card {
+    background: var(--bg2); border: 1px solid var(--outline);
+    border-radius: 10px; padding: 18px;
+    transition: border-color 0.2s;
+  }
+  .detail-card:hover { border-color: var(--amber-bd); }
+  .detail-card-eye { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .detail-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 6px; line-height: 1.3; }
+  .detail-card p  { font-size: 11px; color: var(--muted); line-height: 1.65; }
+  .detail-chip { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 2px 7px; border-radius: 4px; margin-top: 8px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 500; }
+
+  /* per-colour accent for open state + detail cards */
+  .branch[data-color="amber"] .branch-accent { background: var(--amber); }
+  .branch[data-color="amber"] .branch-eye    { color: var(--amber); }
+  .branch[data-color="amber"].open .branch-header { background: var(--amber-lt); }
+  .branch[data-color="amber"] .detail-card-eye { color: var(--amber); }
+  .branch[data-color="amber"] .detail-chip { background: var(--amber-lt); color: var(--amber); border: 1px solid var(--amber-bd); }
+
+  .branch[data-color="teal"] .branch-accent { background: var(--teal); }
+  .branch[data-color="teal"] .branch-eye    { color: var(--teal); }
+  .branch[data-color="teal"].open .branch-header { background: var(--teal-lt); }
+  .branch[data-color="teal"] .detail-card-eye { color: var(--teal); }
+  .branch[data-color="teal"] .detail-chip { background: var(--teal-lt); color: var(--teal); border: 1px solid var(--teal-bd); }
+
+  .branch[data-color="coral"] .branch-accent { background: var(--coral); }
+  .branch[data-color="coral"] .branch-eye    { color: var(--coral); }
+  .branch[data-color="coral"].open .branch-header { background: var(--coral-lt); }
+  .branch[data-color="coral"] .detail-card-eye { color: var(--coral); }
+  .branch[data-color="coral"] .detail-chip { background: var(--coral-lt); color: var(--coral); border: 1px solid var(--coral-bd); }
+
+  .branch[data-color="purple"] .branch-accent { background: var(--purple); }
+  .branch[data-color="purple"] .branch-eye    { color: var(--purple); }
+  .branch[data-color="purple"].open .branch-header { background: var(--purple-lt); }
+  .branch[data-color="purple"] .detail-card-eye { color: var(--purple); }
+  .branch[data-color="purple"] .detail-chip { background: var(--purple-lt); color: var(--purple); border: 1px solid var(--purple-bd); }
+
+  .branch[data-color="green"] .branch-accent { background: var(--green); }
+  .branch[data-color="green"] .branch-eye    { color: var(--green); }
+  .branch[data-color="green"].open .branch-header { background: var(--green-lt); }
+  .branch[data-color="green"] .detail-card-eye { color: var(--green); }
+  .branch[data-color="green"] .detail-chip { background: var(--green-lt); color: var(--green); border: 1px solid var(--green-bd); }
+
+  /* cta */
+  .cta { text-align: center; padding: 80px 40px 100px; max-width: 600px; margin: 0 auto; }
+  .cta h2 { font-size: clamp(26px, 4vw, 44px); font-weight: 800; letter-spacing: -1px; line-height: 1.1; margin-bottom: 16px; }
+  .cta p { font-size: 15px; color: var(--muted); line-height: 1.75; font-family: 'Lora', serif; font-style: italic; margin-bottom: 36px; }
+  .cta-row { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+  .pill { padding: 9px 18px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1px solid var(--outline); color: var(--muted); }
+  .pill.pri { background: var(--amber); color: #fff; border-color: transparent; box-shadow: 0 4px 18px rgba(196,127,0,0.25); }
+
+  /* expansion note banner */
+  .expansion-note {
+    display: flex; align-items: flex-start; gap: 10px;
+    margin-bottom: 32px;
+    padding: 12px 16px;
+    background: var(--bg2);
+    border: 1px solid var(--outline);
+    border-radius: 8px;
+    font-size: 12px; color: var(--muted); line-height: 1.65;
+    max-width: 620px;
+  }
+  .expansion-note svg { flex-shrink: 0; margin-top: 1px; color: var(--faint); }
+
+  @media(max-width:720px){
+    .g3 { grid-template-columns: 1fr; }
+    .pipeline { grid-template-columns: 1fr 1fr; }
+    .nav-links { display: none; }
+    .section { padding: 64px 20px; }
+    .branch-sub-pills { display: none; }
+    .branch-detail-inner.cols2,
+    .branch-detail-inner.cols3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-logo">PDF Extractor</span>
+  <div class="nav-links">
+    <a href="#foundation">Foundation</a>
+    <a href="#branches">Branches</a>
+  </div>
+  <span class="nav-badge">Internal Blueprint</span>
+</nav>
+
+<!-- HERO -->
+<div class="hero reveal">
+  <div class="hero-tag">Strategic Extension Blueprint · 2025</div>
+  <h1>From PDF<br>to <em>Intelligence</em><br>Platform</h1>
+  <p class="hero-sub">
+    We have already solved the hardest problem — getting clean, structured financial data out of annual report PDFs. This blueprint maps five directions to extend that foundation into a firm-wide analytical advantage.
+  </p>
+  <div class="stats">
+    <div><span class="stat-num">3</span><span class="stat-lbl">Pipeline steps live</span></div>
+    <div><span class="stat-num">5</span><span class="stat-lbl">Extension branches</span></div>
+    <div><span class="stat-num">15+</span><span class="stat-lbl">Potential modules</span></div>
+    <div><span class="stat-num">∞</span><span class="stat-lbl">Reports processable</span></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- FOUNDATION -->
+<div id="foundation" class="section">
+  <div class="reveal">
+    <div class="eyebrow">Foundation</div>
+    <h2 class="section-title">Phase 1 — What we have today</h2>
+    <p class="section-desc">A fully working pipeline that turns any annual report PDF into structured Excel audit workpapers, in minutes instead of days.</p>
+  </div>
+
+  <div class="pipeline reveal">
+    <div class="pipe-step">
+      <div class="pipe-num">Step 01</div>
+      <div class="pipe-label">PDF → Markdown</div>
+      <div class="pipe-sub">Docling AI · OCR · 50-page chunks</div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">Step 02</div>
+      <div class="pipe-label">MD → Tables</div>
+      <div class="pipe-sub">Cross-page stitch · abbreviation map</div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">Step 03</div>
+      <div class="pipe-label">Tables → Excel</div>
+      <div class="pipe-sub">Named sheets · brackets → negatives</div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">Next →</div>
+      <div class="pipe-label">Structured data</div>
+      <div class="pipe-sub">Foundation for all modules below</div>
+    </div>
+  </div>
+
+  <div class="g3 reveal">
+    <div class="card ca">
+      <div class="card-ico">⚡</div>
+      <div class="card-eye">Key advantage</div>
+      <h3>Data acquisition solved</h3>
+      <p>Traditional tools rely on Bloomberg or manual entry. We extract directly from PDFs — any company, any year, on demand.</p>
+    </div>
+    <div class="card ct">
+      <div class="card-ico">🗄️</div>
+      <div class="card-eye">Key advantage</div>
+      <h3>Markdown as a second asset</h3>
+      <p>Step 01 produces clean text files — not just intermediates. They are the direct input for AI analysis, RAG, and disclosure checking.</p>
+    </div>
+    <div class="card cc">
+      <div class="card-ico">🔑</div>
+      <div class="card-eye">Key advantage</div>
+      <h3>Canonical line-item keys</h3>
+      <p>The abbreviation map (PPE, CCE, REV…) normalises items across companies — the prerequisite for any cross-company comparison.</p>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- BRANCHES -->
+<div id="branches" class="section">
+  <div class="reveal">
+    <div class="eyebrow">Extension strategy</div>
+    <h2 class="section-title">Five branches, one foundation</h2>
+    <p class="section-desc">These are potential expansion areas that the existing pipeline can grow into — not immediate commitments. Click any branch to explore its modules.</p>
+    <div class="expansion-note reveal">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      All five branches build on the same Phase 1 data — no parallel infrastructure needed. Each can be scoped and prioritised independently when the time is right.
+    </div>
+  </div>
+
+  <!-- ── AUDIT ── -->
+  <div class="branch reveal" data-color="amber">
+    <div class="branch-header" onclick="toggle(this)">
+      <div class="branch-accent"></div>
+      <div class="branch-header-text">
+        <div class="branch-eye">Audit</div>
+        <div class="branch-title">Audit workflow automation</div>
+        <div class="branch-desc-short">Extends the Excel workpaper into a full audit preparation toolkit</div>
+      </div>
+      <div class="branch-right">
+        <div class="branch-sub-pills">
+          <span class="sub-pill">Disclosure checklist</span>
+          <span class="sub-pill">Cross-ref tie-out</span>
+          <span class="sub-pill">Going concern</span>
+        </div>
+        <div class="branch-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="branch-detail">
+      <div class="branch-detail-inner cols3">
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 01</div>
+          <h4>Disclosure checklist</h4>
+          <p>Claude reads the Markdown output and checks each disclosure against an IFRS/SFRS template. Returns Y / N / Partial per item, with the page location in the report.</p>
+          <span class="detail-chip">Claude API + IFRS JSON template</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 02</div>
+          <h4>Cross-reference tie-out</h4>
+          <p>Automatically verifies that figures in the notes match the primary statements. Flags any mismatch with the exact cells involved — work that currently takes hours per engagement.</p>
+          <span class="detail-chip">Pure computation · tables_dict</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 03</div>
+          <h4>Going concern signals</h4>
+          <p>Scans the MD&A Markdown for hedging language ("may", "material uncertainty", "ability to continue") and cross-checks against liquidity and solvency ratios to surface risk before fieldwork starts.</p>
+          <span class="detail-chip">NLP + ratio thresholds</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 04</div>
+          <h4>Evidence auto-vouching</h4>
+          <p>Client uploads supporting document PDFs (invoices, bank statements, contracts). The pipeline extracts key fields — date, counterparty, amount, reference — into a structured table ready to paste directly into the auditor's working paper. Eliminates manual transcription from support documents.</p>
+          <span class="detail-chip">PDF extraction · copy-paste ready</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 05</div>
+          <h4>Client health score</h4>
+          <p>Combines current ratio, quick ratio, debt-to-equity, and interest coverage into a single traffic-light score — a one-glance risk indicator ready before every engagement.</p>
+          <span class="detail-chip">Single number · pandas</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 06</div>
+          <h4>Auto client dossier</h4>
+          <p>Claude generates a one-page engagement brief: financial snapshot, key movements, red flags, and open items from last year's audit. Ready the morning before fieldwork.</p>
+          <span class="detail-chip">Claude API · structured prompt</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── INVESTMENT ── -->
+  <div class="branch reveal" data-color="teal">
+    <div class="branch-header" onclick="toggle(this)">
+      <div class="branch-accent"></div>
+      <div class="branch-header-text">
+        <div class="branch-eye">Investment</div>
+        <div class="branch-title">Long-term investment dashboard</div>
+        <div class="branch-desc-short">Ratio trends, peer benchmarking, and AI memos — no data vendor needed</div>
+      </div>
+      <div class="branch-right">
+        <div class="branch-sub-pills">
+          <span class="sub-pill">Ratio trends</span>
+          <span class="sub-pill">Peer benchmarking</span>
+          <span class="sub-pill">AI investment memo</span>
+        </div>
+        <div class="branch-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="branch-detail">
+      <div class="branch-detail-inner cols3">
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 01</div>
+          <h4>Ratio trend analysis</h4>
+          <p>ROE, ROIC, gross margin, net margin, and leverage plotted as 5-year sparklines per company. Spot structural deterioration before it is reflected in price.</p>
+          <span class="detail-chip">Pure pandas · no AI needed</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 02</div>
+          <h4>Quality of earnings</h4>
+          <p>Accruals Ratio = (Net Income − CFO) ÷ Avg Assets. High accruals signal paper earnings rather than real cash — a screen most retail platforms do not surface.</p>
+          <span class="detail-chip">Audit team advantage</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 03</div>
+          <h4>Peer benchmarking</h4>
+          <p>Compare ratios across all companies we have processed. Same-sector radar charts and ranking tables, built entirely from data we extract ourselves.</p>
+          <span class="detail-chip">SQLite · cross-company</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 04</div>
+          <h4>Valuation engine</h4>
+          <p>User inputs current market price. System computes P/E, P/B, and EV/EBITDA versus historical averages, plus a DCF model with editable WACC and terminal growth rate.</p>
+          <span class="detail-chip">User inputs price</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 05</div>
+          <h4>AI investment memo</h4>
+          <p>Claude generates Bull case · Bear case · Watch items — one page per company, grounded strictly in extracted financials and MD&A text. Not a hallucinated opinion.</p>
+          <span class="detail-chip">Claude API · data-grounded</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 06</div>
+          <h4>Watchlist tracker</h4>
+          <p>Save companies to a watchlist. When a new annual report is uploaded and processed, the dashboard automatically refreshes all ratios and flags material changes.</p>
+          <span class="detail-chip">Auto-refresh on new upload</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RISK ── -->
+  <div class="branch reveal" data-color="coral">
+    <div class="branch-header" onclick="toggle(this)">
+      <div class="branch-accent"></div>
+      <div class="branch-header-text">
+        <div class="branch-eye">Risk</div>
+        <div class="branch-title">Risk &amp; fraud signal detection</div>
+        <div class="branch-desc-short">Industry-standard forensic models run automatically on every client</div>
+      </div>
+      <div class="branch-right">
+        <div class="branch-sub-pills">
+          <span class="sub-pill">Beneish M-Score</span>
+          <span class="sub-pill">Altman Z-Score</span>
+          <span class="sub-pill">YoY variance flags</span>
+        </div>
+        <div class="branch-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="branch-detail">
+      <div class="branch-detail-inner cols3">
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 01</div>
+          <h4>Beneish M-Score</h4>
+          <p>8-variable model that flags earnings manipulation risk. Score above −1.78 is a warning sign. Public formula, fully computable from Step 02 output — no additional data needed.</p>
+          <span class="detail-chip">Public formula · ~1 day to build</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 02</div>
+          <h4>Altman Z-Score</h4>
+          <p>Predicts financial distress probability using five weighted financial ratios. Score below 1.81 signals significant bankruptcy risk. Computable directly from the extracted balance sheet and P&L.</p>
+          <span class="detail-chip">Public formula · pandas</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 03</div>
+          <h4>YoY variance flags</h4>
+          <p>Automatically highlights any line item that moved more than 20% year-on-year. Flagged in a dedicated Excel sheet with the exact amount and percentage change — no manual scanning.</p>
+          <span class="detail-chip">Pure pandas · no AI</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 04</div>
+          <h4>MD&A sentiment scan</h4>
+          <p>Compares the MD&A Markdown between two years. Detects increases in hedging language, new risk factors, and changes in tone that may signal management concern before it shows in numbers.</p>
+          <span class="detail-chip">Claude API · Markdown input</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 05</div>
+          <h4>Segment analysis</h4>
+          <p>Extracts segment revenue, profit, and asset breakdowns where disclosed. Tracks revenue mix shifts over time — a leading indicator of strategic risk or concentration.</p>
+          <span class="detail-chip">Step 02 segment tables</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 06</div>
+          <h4>Covenant monitor</h4>
+          <p>Extracts debt covenant terms from the notes (minimum ratios, restriction thresholds) and computes current headroom against each covenant — flags approaching breaches early.</p>
+          <span class="detail-chip">Notes parsing · ratio calc</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── KNOWLEDGE ── -->
+  <div class="branch reveal" data-color="purple">
+    <div class="branch-header" onclick="toggle(this)">
+      <div class="branch-accent"></div>
+      <div class="branch-header-text">
+        <div class="branch-eye">Knowledge</div>
+        <div class="branch-title">Institutional knowledge base</div>
+        <div class="branch-desc-short">Ask questions across the entire client portfolio — answered in seconds</div>
+      </div>
+      <div class="branch-right">
+        <div class="branch-sub-pills">
+          <span class="sub-pill">Cross-company Q&A</span>
+          <span class="sub-pill">Client dossier</span>
+          <span class="sub-pill">Standards tracker</span>
+        </div>
+        <div class="branch-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="branch-detail">
+      <div class="branch-detail-inner cols3">
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 01</div>
+          <h4>Cross-company Q&amp;A</h4>
+          <p>All Batch_*.md files indexed into a vector database. Ask natural language questions across the entire portfolio: "Which clients mentioned going concern this year?" "Who has the highest RPT exposure?"</p>
+          <span class="detail-chip">RAG · chromadb / sqlite-vec</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 02</div>
+          <h4>Auto client dossier</h4>
+          <p>Before every engagement, Claude generates a structured brief: 3-year financial snapshot, key ratio movements, open items from last year, and emerging risks — ready without any manual preparation.</p>
+          <span class="detail-chip">Claude API · structured prompt</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 03</div>
+          <h4>Standards change tracker</h4>
+          <p>Automatically flags which clients have newly adopted IFRS 17, IFRS 18, or other standards — identified from the accounting policy notes in the Markdown. See the full portfolio impact at a glance.</p>
+          <span class="detail-chip">Policy note parsing</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 04</div>
+          <h4>Multi-year trend workpaper</h4>
+          <p>Process 3–5 years of a single company's reports and output one consolidated Excel workpaper with all line items on a single time-series sheet. Line item names normalised across years automatically.</p>
+          <span class="detail-chip">KNOWN_ABBREVIATIONS · pandas</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 05</div>
+          <h4>Industry benchmarking reports</h4>
+          <p>Group all clients in the same industry and generate an anonymised benchmarking report — average ratios, range of outcomes, and outlier flags. Useful for business development conversations.</p>
+          <span class="detail-chip">Aggregated SQLite query</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 06</div>
+          <h4>Historical search</h4>
+          <p>Full-text search across every annual report the team has ever processed. Find all mentions of a specific counterparty, litigation, or accounting policy across companies and years in one query.</p>
+          <span class="detail-chip">Vector + keyword search</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ESG ── -->
+  <div class="branch reveal" data-color="green">
+    <div class="branch-header" onclick="toggle(this)">
+      <div class="branch-accent"></div>
+      <div class="branch-header-text">
+        <div class="branch-eye">ESG</div>
+        <div class="branch-title">ESG &amp; climate disclosure analysis</div>
+        <div class="branch-desc-short">Same pipeline applied to sustainability reports — ahead of SGX's 2025 mandate</div>
+      </div>
+      <div class="branch-right">
+        <div class="branch-sub-pills">
+          <span class="sub-pill">GHG extraction</span>
+          <span class="sub-pill">ISSB checklist</span>
+          <span class="sub-pill">ESG trends</span>
+        </div>
+        <div class="branch-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="branch-detail">
+      <div class="branch-detail-inner cols3">
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 01</div>
+          <h4>GHG data extraction</h4>
+          <p>Extracts Scope 1, 2, and 3 greenhouse gas emissions from sustainability reports. Computes emission intensity ratios (per revenue, per employee) and tracks them year-on-year in an Excel workpaper.</p>
+          <span class="detail-chip">Same pipeline · sustainability PDF</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 02</div>
+          <h4>ISSB / TCFD checklist</h4>
+          <p>Checks sustainability report Markdown against IFRS S1, IFRS S2, and TCFD framework requirements. Returns a compliance gap report per client — ready to share or use as a workpaper.</p>
+          <span class="detail-chip">Claude API · ISSB template</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 03</div>
+          <h4>ESG trend workpaper</h4>
+          <p>Multi-year emission and ESG metric trends consolidated into one Excel file — same format and naming conventions as the financial workpapers for consistency across the engagement file.</p>
+          <span class="detail-chip">Consistent with Phase 1 format</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 04</div>
+          <h4>SGX mandatory disclosure tracker</h4>
+          <p>SGX requires climate-related disclosures for all listed issuers from 2025. This module tracks which clients have filed, what is still missing, and flags non-compliance across the portfolio.</p>
+          <span class="detail-chip">SGX listing rules · 2025 deadline</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 05</div>
+          <h4>ESG peer benchmarking</h4>
+          <p>Compare emission intensity, energy use, and governance scores across all clients in the same sector. Identifies who is ahead of peers and who faces the most disclosure pressure.</p>
+          <span class="detail-chip">Cross-company · sector grouping</span>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-eye">Module 06</div>
+          <h4>Assurance readiness report</h4>
+          <p>Generates a structured assessment of each client's readiness for limited or reasonable assurance on sustainability data — data completeness, controls, and known gaps flagged automatically.</p>
+          <span class="detail-chip">Claude API · assurance framework</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- CTA -->
+<div class="cta reveal">
+  <h2>One pipeline.<br><em style="color:var(--amber);font-style:normal">Compounding value.</em></h2>
+  <p>Every annual report we process makes the platform more powerful. The data extracted today becomes the benchmark for next year's analysis. The team that builds this first builds a structural advantage that compounds over time.</p>
+</div>
+
+<script>
+  function toggle(header) {
+    const branch = header.closest('.branch');
+    const isOpen = branch.classList.contains('open');
+    // close all
+    document.querySelectorAll('.branch.open').forEach(b => b.classList.remove('open'));
+    // open this one if it wasn't already open
+    if (!isOpen) branch.classList.add('open');
+  }
+
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.07 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+</body>
+</html>
